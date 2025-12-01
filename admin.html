@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>amritaCash - Admin Panel</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="logo">amritaCash</div>
+            <div class="tagline">Admin Panel</div>
+            <div class="admin-controls">
+                <a href="index.html" class="btn">Student Panel</a>
+            </div>
+        </div>
+    </header>
+    
+    <div class="container">
+        <div class="card">
+            <h2 class="card-title">Admin Panel</h2>
+            
+            <div class="student-info">
+                <h4>Current Student Request</h4>
+                <p><strong>Name:</strong> <span id="adminStudentName">-</span></p>
+                <p><strong>Student ID:</strong> <span id="adminStudentId">-</span></p>
+                <p><strong>Amount Requested:</strong> <span id="adminAmount">-</span></p>
+                <p><strong>Student Type:</strong> <span id="adminStudentType">-</span></p>
+                <p><strong>Phone:</strong> <span id="adminPhone">-</span></p>
+                <p><strong>Status:</strong> <span id="adminStatus">No active request</span></p>
+            </div>
+            
+            <div class="pickup-customization">
+                <h3>Customize Pickup Location</h3>
+                <div class="form-group">
+                    <label for="customLocation">Pickup Location</label>
+                    <input type="text" id="customLocation" placeholder="e.g., Room No. 132, Mathura Block">
+                </div>
+                <div class="form-group">
+                    <label for="customAddress">Address Details</label>
+                    <textarea id="customAddress" placeholder="e.g., Hostel Building, Amrita Vishwa Vidyapeetham" rows="3"></textarea>
+                </div>
+                <button type="button" id="updatePickupLocation" class="btn">Update Pickup Location</button>
+            </div>
+            
+            <div class="form-group">
+                <button type="button" id="approveRequest" class="btn btn-success btn-block">Approve Request</button>
+                <button type="button" id="rejectRequest" class="btn btn-warning btn-block" style="margin-top: 10px;">Reject Request (Cash Not Available)</button>
+            </div>
+            
+            <div class="form-group">
+                <h3>Transaction History</h3>
+                <div id="transactionHistory">
+                    <p>No transactions yet.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <footer>
+        <div class="container">
+            <p>amritaCash - Admin Panel | 5% Service Commission Applied</p>
+            <p>For support, contact: karunesh128@gmail.com | Phone: 7991541531</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Admin elements
+            const adminStudentName = document.getElementById('adminStudentName');
+            const adminStudentId = document.getElementById('adminStudentId');
+            const adminAmount = document.getElementById('adminAmount');
+            const adminStudentType = document.getElementById('adminStudentType');
+            const adminPhone = document.getElementById('adminPhone');
+            const adminStatus = document.getElementById('adminStatus');
+            const customLocation = document.getElementById('customLocation');
+            const customAddress = document.getElementById('customAddress');
+            const updatePickupLocationBtn = document.getElementById('updatePickupLocation');
+            const approveRequestBtn = document.getElementById('approveRequest');
+            const rejectRequestBtn = document.getElementById('rejectRequest');
+            const transactionHistory = document.getElementById('transactionHistory');
+
+            // Load saved pickup location
+            function loadPickupLocation() {
+                const savedLocation = localStorage.getItem('pickupLocation');
+                const savedAddress = localStorage.getItem('pickupAddress');
+                
+                if (savedLocation) customLocation.value = savedLocation;
+                if (savedAddress) customAddress.value = savedAddress;
+            }
+
+            // Update pickup location
+            updatePickupLocationBtn.addEventListener('click', function() {
+                const location = customLocation.value || "Room No. 132, Mathura Block";
+                const address = customAddress.value || "Hostel Building, Amrita Vishwa Vidyapeetham";
+                
+                localStorage.setItem('pickupLocation', location);
+                localStorage.setItem('pickupAddress', address);
+                
+                alert('Pickup location updated successfully!');
+            });
+
+            // Update admin panel with current student request
+            function updateAdminPanel() {
+                const studentRequest = JSON.parse(localStorage.getItem('currentStudentRequest') || '{}');
+                
+                if (studentRequest.name && studentRequest.status === 'pending') {
+                    adminStudentName.textContent = studentRequest.name;
+                    adminStudentId.textContent = studentRequest.studentId;
+                    adminAmount.textContent = `₹${studentRequest.amount}`;
+                    adminStudentType.textContent = studentRequest.studentType === 'national' ? 'National (India)' : 'International';
+                    adminPhone.textContent = `${studentRequest.countryCode} ${studentRequest.phone}`;
+                    adminStatus.textContent = 'Pending - Waiting for Payment';
+                    adminStatus.style.color = 'var(--warning)';
+                    
+                    // Enable buttons
+                    approveRequestBtn.disabled = false;
+                    rejectRequestBtn.disabled = false;
+                    
+                    // Check for payment proof
+                    if (studentRequest.paymentProof) {
+                        adminStatus.textContent = 'Payment Proof Uploaded - Verify';
+                        adminStatus.style.color = 'var(--success)';
+                    }
+                } else {
+                    adminStudentName.textContent = '-';
+                    adminStudentId.textContent = '-';
+                    adminAmount.textContent = '-';
+                    adminStudentType.textContent = '-';
+                    adminPhone.textContent = '-';
+                    adminStatus.textContent = 'No active request';
+                    adminStatus.style.color = 'var(--dark)';
+                    
+                    // Disable buttons
+                    approveRequestBtn.disabled = true;
+                    rejectRequestBtn.disabled = true;
+                }
+                
+                // Update transaction history
+                updateTransactionHistory();
+            }
+
+            // Update transaction history
+            function updateTransactionHistory() {
+                const transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
+                
+                if (transactions.length > 0) {
+                    let historyHTML = '';
+                    transactions.forEach(transaction => {
+                        const statusColor = transaction.status === 'completed' ? 'green' : 
+                                          transaction.status === 'rejected' ? 'red' : 'orange';
+                        historyHTML += `
+                            <div class="transaction-item">
+                                <p><strong>${transaction.name}</strong> (${transaction.studentId})</p>
+                                <p>Amount: ₹${transaction.amount} | Status: <span style="color: ${statusColor}">${transaction.status}</span></p>
+                                <p>Time: ${new Date(transaction.timestamp).toLocaleString()}</p>
+                            </div>
+                        `;
+                    });
+                    transactionHistory.innerHTML = historyHTML;
+                } else {
+                    transactionHistory.innerHTML = '<p>No transactions yet.</p>';
+                }
+            }
+
+            // Approve request
+            approveRequestBtn.addEventListener('click', function() {
+                const studentRequest = JSON.parse(localStorage.getItem('currentStudentRequest') || '{}');
+                
+                if (studentRequest.name) {
+                    studentRequest.status = 'approved';
+                    studentRequest.approvedTime = new Date().toISOString();
+                    localStorage.setItem('currentStudentRequest', JSON.stringify(studentRequest));
+                    
+                    alert('Request approved! Student can now proceed with payment.');
+                    updateAdminPanel();
+                } else {
+                    alert('No student request to approve');
+                }
+            });
+
+            // Reject request
+            rejectRequestBtn.addEventListener('click', function() {
+                const studentRequest = JSON.parse(localStorage.getItem('currentStudentRequest') || '{}');
+                
+                if (studentRequest.name) {
+                    // Add to transaction history as rejected
+                    const transactions = JSON.parse(localStorage.getItem('transactions') || '[]');
+                    studentRequest.status = 'rejected';
+                    studentRequest.rejectionTime = new Date().toISOString();
+                    transactions.push(studentRequest);
+                    localStorage.setItem('transactions', JSON.stringify(transactions));
+                    
+                    // Clear current request
+                    localStorage.removeItem('currentStudentRequest');
+                    
+                    alert('Request rejected. Student has been notified.');
+                    updateAdminPanel();
+                } else {
+                    alert('No student request to reject');
+                }
+            });
+
+            // Initialize
+            loadPickupLocation();
+            updateAdminPanel();
+            
+            // Check for new requests every 3 seconds
+            setInterval(updateAdminPanel, 3000);
+        });
+    </script>
+</body>
+</html>
